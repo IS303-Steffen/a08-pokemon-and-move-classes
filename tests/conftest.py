@@ -4,7 +4,7 @@ any @pytest.fixture created here is available to any other test file
 if they reference it as a parameter.
 '''
 
-import pytest, re, sys, os, json, traceback, multiprocessing, pickle, inspect, ast, importlib
+import pytest, re, sys, os, json, traceback, multiprocessing, pickle, inspect, ast, importlib, tempfile
 from io import StringIO
 from collections.abc import Iterable
 from tests.class_test_cases import test_cases_classes_dict
@@ -107,12 +107,14 @@ def load_student_code(inputs, test_case=None, module_to_test=default_module_to_t
     captured_input_prompts, captured_output, module_globals, function_results, class_results, raised_exceptions
     """
     try:
-        # Create a queue to communicate with the subprocess
-        queue = multiprocessing.Queue()
+        # Create a temporary file to communicate with the subprocess
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        temp_file_name = temp_file.name
+        temp_file.close()  # Close the file so the subprocess can open it
 
         # Start the subprocess
         p = multiprocessing.Process(target=_load_student_code_subprocess,
-                                    args=(queue, inputs, test_case, module_to_test, function_tests, class_tests))
+                                    args=(temp_file_name, inputs, test_case, module_to_test, function_tests, class_tests))
         p.start()
 
         # Wait for the subprocess to finish, or continue if the timeout limit is reached
@@ -124,11 +126,16 @@ def load_student_code(inputs, test_case=None, module_to_test=default_module_to_t
             p.join()  # Ensure the main program waits for the subprocess to fully terminate
 
             # Handle timeout
+            if os.path.exists(temp_file_name):
+                os.remove(temp_file_name)  # Ensure the temp file is deleted
             pytest.fail(timeout_message_for_students(test_case))
         else:
-            # Subprocess finished; get the result
-            if not queue.empty():
-                status, payload = queue.get()
+            # Subprocess finished; read the result from the temp file
+            if os.path.exists(temp_file_name):
+                with open(temp_file_name, 'rb') as f:
+                    status, payload = pickle.load(f)
+                os.remove(temp_file_name)  # Delete the temp file
+
                 if status == 'success':
                     return payload
                 elif status == 'exception':
@@ -139,9 +146,12 @@ def load_student_code(inputs, test_case=None, module_to_test=default_module_to_t
             else:
                 pytest.fail("Subprocess finished without returning any data. Contact your professor.")
     except Exception as e:
+        if os.path.exists(temp_file_name):
+            os.remove(temp_file_name)  # Ensure the temp file is deleted
         exception_message_for_students(e, test_case)
 
-def _load_student_code_subprocess(queue, inputs, test_case, module_to_test, function_tests, class_tests):
+
+def _load_student_code_subprocess(temp_file_name, inputs, test_case, module_to_test, function_tests, class_tests):
     """
     Executes the student's code in a subprocess, capturing inputs, outputs, exceptions, and testing functions/classes.
     """
@@ -224,8 +234,8 @@ def _load_student_code_subprocess(queue, inputs, test_case, module_to_test, func
 
         # Add main_locals to module_globals under a special key
         module_globals['__main_locals__'] = main_locals
-        
-        # add each payload into a dictionary:
+
+        # Add each payload into a dictionary
         queue_payload['captured_input_prompts'] = captured_input_prompts
         queue_payload['captured_output'] = captured_output
         queue_payload['module_globals'] = module_globals
@@ -233,8 +243,9 @@ def _load_student_code_subprocess(queue, inputs, test_case, module_to_test, func
         queue_payload['class_results'] = class_results
         queue_payload['raised_exceptions'] = raised_exceptions
 
-        # Send back the results
-        queue.put(('success', queue_payload))
+        # Write the results to the temp file
+        with open(temp_file_name, 'wb') as f:
+            pickle.dump(('success', queue_payload), f)
 
     except StopIteration as e:
         # Send the exception back as a dictionary
@@ -250,7 +261,9 @@ def _load_student_code_subprocess(queue, inputs, test_case, module_to_test, func
                         f"reach out to your professor."),
             'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
         }
-        queue.put(('exception', exception_data))
+        # Write the exception data to the temp file
+        with open(temp_file_name, 'wb') as f:
+            pickle.dump(('exception', exception_data), f)
     except EOFError as e:
         # Send the exception back as a dictionary
         exc_type, exc_value, exc_tb = sys.exc_info()
@@ -260,7 +273,9 @@ def _load_student_code_subprocess(queue, inputs, test_case, module_to_test, func
                         f"in a .py module that you imported. Please only use the input() function in the main assignment .py file."),
             'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
         }
-        queue.put(('exception', exception_data))
+        # Write the exception data to the temp file
+        with open(temp_file_name, 'wb') as f:
+            pickle.dump(('exception', exception_data), f)
     except BaseException as e:
         # Send the exception back as a dictionary
         exc_type, exc_value, exc_tb = sys.exc_info()
@@ -269,7 +284,9 @@ def _load_student_code_subprocess(queue, inputs, test_case, module_to_test, func
             'message': str(e),
             'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
         }
-        queue.put(('exception', exception_data))
+        # Write the exception data to the temp file
+        with open(temp_file_name, 'wb') as f:
+            pickle.dump(('exception', exception_data), f)
     finally:
         sys.settrace(None)
         if 'old_stdout' in globals() or 'old_stdout' in locals():
