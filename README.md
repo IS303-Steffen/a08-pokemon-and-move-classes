@@ -14,7 +14,7 @@ You will put your code in the `a8_pokemon_and_move_classes.py` file. Do not edit
 
 
 ## Classes Required:
-You can write the class names in PascalCase, camelCase, or snake_case (though PascalCase is the convention for class names in Python). The automated tests will recognize any of those choices. The names of instance variables are not checked by the automated tests (only the values of the variables are checked) so you can name them whatever you want. Method names can also be in snake_case, camelCase, or PascalCase (though snake_case is the convention for class names in Python).
+You can write the class names in PascalCase, camelCase, or snake_case (though PascalCase is the convention for class names in Python). The automated tests will recognize any of those choices. The names of instance variables are not checked by the automated tests (only the values of the variables are checked) so you can name them whatever you want. Method names can also be in snake_case, camelCase, or PascalCase (though snake_case is the convention for method/function names in Python).
 
 For clarity / organization, I've listed out the structure of the classes first before the Logical Flow section, but some of you may prefer to just skip to the Logical Flow section. Choose what feels natural.
 
@@ -106,7 +106,7 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
     - Squirtle – Type: Water – Hit Points: 65`
   - Create a method called `heal` with just `self` as a parameter. It increases the current value of `hit_points` by 15 and prints out a message with the Pokémon’s `name` and what their new value of `hit_points` are
     - For example, if Squirtle had 65 hit points and the heal method was run on it, it would print:
-  - `Squirtle has been healed to 80 hit points.`
+      - `Squirtle has been healed to 80 hit points.`
 - Create 3 `Pokemon` objects
   - Call the constructor 3 times to create 3 different `Pokemon` objects stored in 3 different variables. The values that you can pass into the constructor are given in each row in the table below:
 
