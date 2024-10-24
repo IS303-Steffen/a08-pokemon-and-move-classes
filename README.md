@@ -71,17 +71,17 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
 - Create 9 `Move` objects.
   - Call the constructor 9 times to store 9 different `Move` objects in 9 different variables. The values that you can pass into the constructor are given in each row in the table below:
 
-| Move Name      | Elemental Type | Low Attack Points | High Attack Points |
-|----------------|----------------|-------------------|--------------------|
-| Tackle         | Normal         | 5                 | 20                 |
-| Quick Attack   | Normal         | 6                 | 25                 |
-| Slash          | Normal         | 10                | 30                 |
-| Flamethrower   | Fire           | 5                 | 30                 |
-| Ember          | Fire           | 10                | 20                 |
-| Water Gun      | Water          | 5                 | 15                 |
-| Hydro Pump     | Water          | 20                | 25                 |
-| Vine Whip      | Grass          | 10                | 25                 |
-| Solar Beam     | Grass          | 18                | 27                 |
+  - | Move Name      | Elemental Type | Low Attack Points | High Attack Points |
+    |----------------|----------------|-------------------|--------------------|
+    | Tackle         | Normal         | 5                 | 20                 |
+    | Quick Attack   | Normal         | 6                 | 25                 |
+    | Slash          | Normal         | 10                | 30                 |
+    | Flamethrower   | Fire           | 5                 | 30                 |
+    | Ember          | Fire           | 10                | 20                 |
+    | Water Gun      | Water          | 5                 | 15                 |
+    | Hydro Pump     | Water          | 20                | 25                 |
+    | Vine Whip      | Grass          | 10                | 25                 |
+    | Solar Beam     | Grass          | 18                | 27                 |
 
 - Create a list that stores each of the 9 objects in it.
 - Do a for loop that runs 5 times, and in each iteration, do the following:
@@ -110,11 +110,11 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
 - Create 3 `Pokemon` objects
   - Call the constructor 3 times to create 3 different `Pokemon` objects stored in 3 different variables. The values that you can pass into the constructor are given in each row in the table below:
 
-| Name        | Elemental Type | Hit Points |
-|-------------|----------------|------------|
-| Bulbasaur   | Grass          | 60         |
-| Charmander  | Fire           | 55         |
-| Squirtle    | Water          | 65         |
+  - | Name        | Elemental Type | Hit Points |
+    |-------------|----------------|------------|
+    | Bulbasaur   | Grass          | 60         |
+    | Charmander  | Fire           | 55         |
+    | Squirtle    | Water          | 65         |
 
 - Call the `get_info` method on the object storing the Charmander Pokémon and print out the result
 - Then call the heal method on the same Charmander object
