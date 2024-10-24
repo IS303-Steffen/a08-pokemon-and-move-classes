@@ -1,0 +1,169 @@
+[
+    {
+        "id_test_case": 1,
+        "test_case_description": "Default run",
+        "inputs": [
+            ""
+        ],
+        "input_prompts": [
+            "Press enter to continue..."
+        ],
+        "printed_messages": [
+            "Flamethrower (Type: Fire): 5 to 30 Attack Points",
+            "Generated attack value: 21",
+            "Tackle (Type: Normal): 5 to 20 Attack Points",
+            "Generated attack value: 14",
+            "Vine Whip (Type: Grass): 10 to 25 Attack Points",
+            "Generated attack value: 11",
+            "Solar Beam (Type: Grass): 18 to 27 Attack Points",
+            "Generated attack value: 24",
+            "Ember (Type: Fire): 10 to 20 Attack Points",
+            "Generated attack value: 19",
+            "Charmander - Type: Fire - Hit Points: 55",
+            "Charmander has been healed to 70 hit points.",
+            "Charmander - Type: Fire - Hit Points: 70",
+            "Bulbasaur - Type: Grass - Hit Points: 60",
+            "Squirtle - Type: Water - Hit Points: 65"
+        ],
+        "invalid_input_prompts": [],
+        "invalid_printed_messages": [],
+        "bools": {},
+        "ints": {
+            "_": 4
+        },
+        "strings": {},
+        "floats": {},
+        "lists": {
+            "list_of_moves": "[<__main__.Move object at 0x102eea150>, <__main__.Move object at 0x102eea1e0>, <__main__.Move object at 0x102eea330>, <__main__.Move object at 0x102eea360>]",
+            "Pokemon_list": "[<__main__.Pokemon object at 0x102848110>, <__main__.Pokemon object at 0x102d63440>, <__main__.Pokemon object at 0x101edacc0>]"
+        },
+        "dicts": {},
+        "Move": {
+            "tackle": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Tackle",
+                    "elemental_type": "Normal",
+                    "low_attack_points": 5,
+                    "high_attack_points": 20
+                }
+            },
+            "quick_attack": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Quick Attack",
+                    "elemental_type": "Normal",
+                    "low_attack_points": 6,
+                    "high_attack_points": 25
+                }
+            },
+            "slash": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Slash",
+                    "elemental_type": "Normal",
+                    "low_attack_points": 10,
+                    "high_attack_points": 30
+                }
+            },
+            "flamethrower": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Flamethrower",
+                    "elemental_type": "Fire",
+                    "low_attack_points": 5,
+                    "high_attack_points": 30
+                }
+            },
+            "ember": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Ember",
+                    "elemental_type": "Fire",
+                    "low_attack_points": 10,
+                    "high_attack_points": 20
+                }
+            },
+            "water_gun": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Water Gun",
+                    "elemental_type": "Water",
+                    "low_attack_points": 5,
+                    "high_attack_points": 15
+                }
+            },
+            "hydro_pump": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Hydro Pump",
+                    "elemental_type": "Water",
+                    "low_attack_points": 20,
+                    "high_attack_points": 25
+                }
+            },
+            "vine_whip": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Vine Whip",
+                    "elemental_type": "Grass",
+                    "low_attack_points": 10,
+                    "high_attack_points": 25
+                }
+            },
+            "solar_beam": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Solar Beam",
+                    "elemental_type": "Grass",
+                    "low_attack_points": 18,
+                    "high_attack_points": 27
+                }
+            },
+            "randomly_selected_move": {
+                "__class__": "Move",
+                "__attributes__": {
+                    "move_name": "Ember",
+                    "elemental_type": "Fire",
+                    "low_attack_points": 10,
+                    "high_attack_points": 20
+                }
+            }
+        },
+        "Pokemon": {
+            "bulbasaur": {
+                "__class__": "Pokemon",
+                "__attributes__": {
+                    "name": "Bulbasaur",
+                    "elemental_type": "Grass",
+                    "hit_points": 60
+                }
+            },
+            "charmander": {
+                "__class__": "Pokemon",
+                "__attributes__": {
+                    "name": "Charmander",
+                    "elemental_type": "Fire",
+                    "hit_points": 70
+                }
+            },
+            "squirtle": {
+                "__class__": "Pokemon",
+                "__attributes__": {
+                    "name": "Squirtle",
+                    "elemental_type": "Water",
+                    "hit_points": 65
+                }
+            },
+            "mon": {
+                "__class__": "Pokemon",
+                "__attributes__": {
+                    "name": "Squirtle",
+                    "elemental_type": "Water",
+                    "hit_points": 65
+                }
+            }
+        },
+        "example_output": "Flamethrower (Type: Fire): 5 to 30 Attack Points\nGenerated attack value: 21\nTackle (Type: Normal): 5 to 20 Attack Points\nGenerated attack value: 14\nVine Whip (Type: Grass): 10 to 25 Attack Points\nGenerated attack value: 11\nSolar Beam (Type: Grass): 18 to 27 Attack Points\nGenerated attack value: 24\nEmber (Type: Fire): 10 to 20 Attack Points\nGenerated attack value: 19\nPress enter to continue...\nCharmander - Type: Fire - Hit Points: 55\nCharmander has been healed to 70 hit points.\nCharmander - Type: Fire - Hit Points: 70\nBulbasaur - Type: Grass - Hit Points: 60\nCharmander - Type: Fire - Hit Points: 70\nSquirtle - Type: Water - Hit Points: 65"
+    }
+]
