@@ -37,8 +37,12 @@ def test_01_printed_messages(test_cases):
             'Squirtle - Type: Water - Hit Points: 65',
             'Generated attack value: 5']
         
+        # Use the appropriate test case
+        test_case = test_cases[0]
+        inputs = test_case["inputs"]
+
         # Load in the student's code and capture output
-        queue_payloads = load_student_code([])
+        queue_payloads = load_student_code(inputs, test_cases[0])
 
         captured_output = queue_payloads.get('captured_output')
         
