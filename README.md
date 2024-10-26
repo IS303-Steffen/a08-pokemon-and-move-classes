@@ -90,7 +90,7 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
   - Print out `Generated attack value: ` and then the returned value from running the `generate_attack_value` method on the randomly selected object.
   - Then delete the move from the list of moves.
 - After finishing the loop, to add a pause in your program, add this line of code:
-  - `input(“Press enter to continue…)`
+  - `input(“Press enter to continue...)`
   - The above code doesn’t store anything, but it makes your program pause until you press enter (or return) on your keyboard. We’ll use the above code more in the future project, but put it here just to get familiar with it. 
 
 ### Part 2: Creating Pokémon objects
