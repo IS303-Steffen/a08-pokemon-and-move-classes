@@ -64,7 +64,7 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
 - Create a Move class
   - Create the constructor with parameters for `self`, `move_name`, `elemental_type`, `low_attack_points`, and `high_attack_points`.
   - Create a method called `get_info` with just `self` as a parameter. It returns a string that includes all of its variables.
-    - `<move name> (Type: <move elemental type>): <low attack points> to <high attack points>`
+    - `<move name> (Type: <move elemental type>): <low attack points> to <high attack points> Attack Points`
     - For example, for the move Tackle, that is a Normal type with attack points between 5 and 20, the returned string should look like:
       - `Tackle (Type: Normal): 5 to 20`
   - Create a method called `generate_attack_value`, with just `self` as a parameter. It will generate a random number between the `low_attack_points` and `high_attack_points` (inclusive on both ends) and return that value.
@@ -84,7 +84,7 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
     | Solar Beam     | Grass          | 18                | 27                 |
 
 - Create a list that stores each of the 9 objects in it.
-- Do a for loop that runs 5 times, and in each iteration, do the following:
+- Do a for loop that runs 3 times, and in each iteration, do the following:
   - Randomly select a `Move` object from the list you created
   - Print out the result of the `get_info` method of the randomly selected object.
   - Print out `Generated attack value: ` and then the returned value from running the `generate_attack_value` method on the randomly selected object.
@@ -133,10 +133,6 @@ Tackle (Type: Normal): 5 to 20 Attack Points
 Generated attack value: 14
 Vine Whip (Type: Grass): 10 to 25 Attack Points
 Generated attack value: 11
-Solar Beam (Type: Grass): 18 to 27 Attack Points
-Generated attack value: 24
-Ember (Type: Fire): 10 to 20 Attack Points
-Generated attack value: 19
 Press enter to continue...
 Charmander - Type: Fire - Hit Points: 55
 Charmander has been healed to 70 hit points.
@@ -174,7 +170,7 @@ After this table, see the Test Cases table below to see what inputs will be run 
           <li><code>Squirtle - Type: Water - Hit Points: 65</code></li>
           <li><code>Generated attack value: &lt;number&gt;</code></li>
         </ul>
-        Additionally, during each run of your code, exactly <code>5</code> of the following statements must run, no more or less:
+        Additionally, during each run of your code, exactly <code>3</code> of the following statements must run, no more or less:
           <ul>
             <li><code>Quick Attack (Type: Normal): 6 to 25 Attack Points</code></li>
             <li><code>Tackle (Type: Normal): 5 to 20 Attack Points</code></li>
@@ -438,10 +434,6 @@ Tackle (Type: Normal): 5 to 20 Attack Points
 Generated attack value: 14
 Vine Whip (Type: Grass): 10 to 25 Attack Points
 Generated attack value: 11
-Solar Beam (Type: Grass): 18 to 27 Attack Points
-Generated attack value: 24
-Ember (Type: Fire): 10 to 20 Attack Points
-Generated attack value: 19
 Press enter to continue...
 Charmander - Type: Fire - Hit Points: 55
 Charmander has been healed to 70 hit points.

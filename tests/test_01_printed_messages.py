@@ -64,8 +64,8 @@ def test_01_printed_messages(test_cases):
             if re.search(expected_get_info, normalized_captured_print_statements):
                 phrase_counter += 1
         
-        assert phrase_counter == 5, format_error_message(
-                custom_message=(f"5 of the following phrases need to appear in your code (ignoring punctuation / capitalization):\n\n"
+        assert phrase_counter == 3, format_error_message(
+                custom_message=(f"3 of the following phrases need to appear in your code (ignoring punctuation / capitalization):\n\n"
                                 f"{expected_get_info_messages_normalized_str}\n\n"
                                 f"However, only {phrase_counter} were found in your code. Be sure to double check your spelling and make sure "
                                 f"you aren't printing the same message twice."
