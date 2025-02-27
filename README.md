@@ -1,4 +1,4 @@
-#### Assignment 8
+#### Assignment 9
 # Pokémon and Move Classes
 
 The purpose of this assignment is to practice the syntax of classes and creating objects. This is an individual assignment, but it is preparation for your next project, “P1 – Pokémon Battle”, which is a group project.
@@ -69,7 +69,7 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
       - `Tackle (Type: Normal): 5 to 20`
   - Create a method called `generate_attack_value`, with just `self` as a parameter. It will generate a random number between the `low_attack_points` and `high_attack_points` (inclusive on both ends) and return that value.
 - Create 9 `Move` objects.
-  - Call the constructor 9 times to store 9 different `Move` objects in 9 different variables. The values that you can pass into the constructor are given in each row in the table below:
+  - Call the constructor 9 times to store 9 different `Move` objects in 9 different variables. The values that you can pass into the constructor are given in each row in the table below. The Move Name and Elemental Type must be as shown in the table, but you can put different values for the attack points if you' like:
 
   - | Move Name      | Elemental Type | Low Attack Points | High Attack Points |
     |----------------|----------------|-------------------|--------------------|

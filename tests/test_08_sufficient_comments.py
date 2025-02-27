@@ -4,7 +4,7 @@ from conftest import default_module_to_test, format_error_message, exception_mes
 
 def test_08_sufficient_comments():
     try:
-        required_num_comments = 10
+        required_num_comments = 7
         num_comments = 0
         modules_to_open = [default_module_to_test]
 

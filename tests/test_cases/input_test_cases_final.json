@@ -1,0 +1,128 @@
+[
+    {
+        "id_input_test_case": 1,
+        "input_test_case_description": "Using 5 as product price, different quantities",
+        "inputs": [
+            "5",
+            "15",
+            ".1",
+            "5",
+            "25",
+            ".1"
+        ],
+        "input_prompts": [
+            "Enter the price for the product purchased: ",
+            "Enter the quantity of the product purchased: ",
+            "Enter the discount percent (formatted as a decimal): "
+        ],
+        "printed_messages": [
+            "Hello Diego, welcome to IS 303!",
+            "Hello Mai, welcome to IS 303!",
+            "12",
+            "970.5",
+            "False",
+            "True",
+            "5 is odd.",
+            "10 is even.",
+            "0.0",
+            "23.88888888888889",
+            "[2, 87, 30.0]",
+            "I am a dog named Spot and I'm 7 years old!",
+            "I am a dog named Peppy and I'm 0 years old!",
+            "Senior",
+            "Adult",
+            "The total price after discounts is: $67.5",
+            "The total price after discounts is: $110.0"
+        ],
+        "invalid_input_prompts": [],
+        "invalid_printed_messages": [
+            "The total price after discounts is: $14.0",
+            "The total price after discounts is: $2320.0"
+        ],
+        "bools": {},
+        "ints": {
+            "_": 1,
+            "price": 5,
+            "quantity": 25
+        },
+        "strings": {},
+        "floats": {
+            "discount": 0.1
+        },
+        "lists": {
+            "numbers_list": [
+                20,
+                45,
+                23,
+                2,
+                87,
+                3
+            ]
+        },
+        "dicts": {},
+        "example_output": "Hello Diego, welcome to IS 303!\nHello Mai, welcome to IS 303!\n12\n970.5\nFalse\nTrue\n5 is odd.\n10 is even.\n0.0\n23.88888888888889\n[2, 87, 30.0]\nI am a dog named Spot and I'm 7 years old!\nI am a dog named Peppy and I'm 0 years old!\nSenior\nAdult\nEnter the price for the product purchased: 5\nEnter the quantity of the product purchased: 15\nEnter the discount percent (formatted as a decimal): .1\nThe total price after discounts is: $67.5\nEnter the price for the product purchased: 5\nEnter the quantity of the product purchased: 25\nEnter the discount percent (formatted as a decimal): .1\nThe total price after discounts is: $110.0"
+    },
+    {
+        "id_input_test_case": 2,
+        "input_test_case_description": "Different prices and quantities",
+        "inputs": [
+            "2",
+            "2000",
+            ".4",
+            "4",
+            "5",
+            ".3"
+        ],
+        "input_prompts": [
+            "Enter the price for the product purchased: ",
+            "Enter the quantity of the product purchased: ",
+            "Enter the discount percent (formatted as a decimal): "
+        ],
+        "printed_messages": [
+            "Hello Diego, welcome to IS 303!",
+            "Hello Mai, welcome to IS 303!",
+            "12",
+            "970.5",
+            "False",
+            "True",
+            "5 is odd.",
+            "10 is even.",
+            "0.0",
+            "23.88888888888889",
+            "[2, 87, 30.0]",
+            "I am a dog named Spot and I'm 7 years old!",
+            "I am a dog named Peppy and I'm 0 years old!",
+            "Senior",
+            "Adult",
+            "The total price after discounts is: $2320.0",
+            "The total price after discounts is: $14.0"
+        ],
+        "invalid_input_prompts": [],
+        "invalid_printed_messages": [
+            "The total price after discounts is: $67.5",
+            "The total price after discounts is: $110.0"
+        ],
+        "bools": {},
+        "ints": {
+            "_": 1,
+            "price": 4,
+            "quantity": 5
+        },
+        "strings": {},
+        "floats": {
+            "discount": 0.3
+        },
+        "lists": {
+            "numbers_list": [
+                20,
+                45,
+                23,
+                2,
+                87,
+                3
+            ]
+        },
+        "dicts": {},
+        "example_output": "Hello Diego, welcome to IS 303!\nHello Mai, welcome to IS 303!\n12\n970.5\nFalse\nTrue\n5 is odd.\n10 is even.\n0.0\n23.88888888888889\n[2, 87, 30.0]\nI am a dog named Spot and I'm 7 years old!\nI am a dog named Peppy and I'm 0 years old!\nSenior\nAdult\nEnter the price for the product purchased: 2\nEnter the quantity of the product purchased: 2000\nEnter the discount percent (formatted as a decimal): .4\nThe total price after discounts is: $2320.0\nEnter the price for the product purchased: 4\nEnter the quantity of the product purchased: 5\nEnter the discount percent (formatted as a decimal): .3\nThe total price after discounts is: $14.0"
+    }
+]

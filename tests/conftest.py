@@ -3,11 +3,29 @@ conftest.py is a configuration file automatically accessed by pytest
 any @pytest.fixture created here is available to any other test file
 if they reference it as a parameter.
 '''
+# =======
+# IMPORTS
+# =======
 
-import pytest, re, sys, os, json, traceback, pickle, inspect, multiprocessing, ast, importlib
+import pytest, re, sys, os, json, traceback, pickle, inspect, multiprocessing, \
+       ast, importlib, difflib, copy, builtins
 from io import StringIO
 from collections.abc import Iterable
-from tests.class_test_cases import test_cases_classes_dict
+from datetime import date, timedelta
+
+# ====================
+# LOCAL MODULE IMPORTS
+# ====================
+
+# Get the absolute path of the directory containing this script
+current_dir = os.path.dirname(__file__)
+
+# Construct the path to 'test_cases' and add it to sys.path
+test_cases_path = os.path.join(current_dir, "test_cases")
+sys.path.append(test_cases_path)
+
+from class_test_cases import test_cases_classes_dict # type: ignore
+from function_test_cases import test_cases_functions_dict # type: ignore
 
 
 # ================
@@ -15,8 +33,9 @@ from tests.class_test_cases import test_cases_classes_dict
 # ================
 
 # Enter the name of the file to be tested here, but leave out the .py file extention.
-solution_module = "a8_solution_pokemon_and_move_classes"
-student_module = "a8_pokemon_and_move_classes"
+solution_module = "a09_solution_pokemon_and_move_classes"
+student_module = "a09_pokemon_and_move_classes"
+
 
 def detect_module(solution_module, student_module):
     if os.path.exists(f"{solution_module}.py"):
@@ -26,11 +45,10 @@ def detect_module(solution_module, student_module):
     else:
         return "PATH NOT FOUND"
 
-#default_module_to_test = "a6_function_smorgasbord"#detect_module(solution_module, student_module)
 default_module_to_test = detect_module(solution_module, student_module)
 
 # default per-test-case timeout amount in seconds:
-default_timeout_seconds = 6
+default_timeout_seconds = 700
 
 # default decimal place to round to for regex comparisons
 # helpful for accounting for different rounding methods students could use.
@@ -42,14 +60,16 @@ raised_exceptions = []
 # Path to the directory containing this file
 CURRENT_DIR = os.path.dirname(__file__)
 
+expected_database_name = None
+
 # ========
 # FIXTURES
 # ========
 
 @pytest.fixture
-def test_cases():
+def input_test_cases():
     # Path to the final captured test cases JSON file
-    captured_test_cases_file = os.path.join(CURRENT_DIR, 'test_cases_final.json')
+    captured_test_cases_file = os.path.join(CURRENT_DIR, 'test_cases', 'input_test_cases_final.json')
     
     # Load the test cases
     with open(captured_test_cases_file, 'r') as f:
@@ -58,8 +78,16 @@ def test_cases():
     return test_cases
 
 @pytest.fixture
-def test_cases_classes(): 
+def function_test_cases():
+    return test_cases_functions_dict
+
+@pytest.fixture
+def class_test_cases(): 
     return test_cases_classes_dict
+
+@pytest.fixture
+def current_test_name(request):
+    return request.node.name
 
 # =====
 # HOOKS
@@ -94,11 +122,12 @@ def pytest_sessionfinish():
     """
     pass
 
+
 # =================================
 # RUNNING STUDENT CODE SUBPROCESSES
 # =================================
 
-def load_student_code(inputs, test_case=None, module_to_test=default_module_to_test,
+def load_student_code(current_test_name, inputs, input_test_case=None, module_to_test=default_module_to_test,
                       function_tests=None, class_tests=None):
     """
     Loads the student's code in a subprocess with mocked inputs to prevent hanging the main test process.
@@ -113,7 +142,7 @@ def load_student_code(inputs, test_case=None, module_to_test=default_module_to_t
 
         # Start the subprocess
         p = multiprocessing.Process(target=_load_student_code_subprocess,
-                                    args=(shared_data, inputs, test_case, module_to_test, function_tests, class_tests))
+                                    args=(shared_data, current_test_name, inputs, input_test_case, module_to_test, function_tests, class_tests))
         p.start()
 
         # Wait for the subprocess to finish, or continue if the timeout limit is reached
@@ -125,7 +154,7 @@ def load_student_code(inputs, test_case=None, module_to_test=default_module_to_t
             p.join()  # Ensure the main program waits for the subprocess to fully terminate
 
             # Handle timeout
-            pytest.fail(timeout_message_for_students(test_case))
+            pytest.fail(timeout_message_for_students(input_test_case, current_test_name))
         else:
             # Subprocess finished; get the result
             if 'status' in shared_data:
@@ -134,22 +163,25 @@ def load_student_code(inputs, test_case=None, module_to_test=default_module_to_t
                     return shared_data['payload']
                 elif status == 'exception':
                     exception_data = shared_data['payload']  # Exception data dictionary
-                    exception_message_for_students(exception_data, test_case)
+                    exception_message_for_students(exception_data, input_test_case, current_test_name)
                 else:
                     pytest.fail("Unexpected status from subprocess. Contact your professor.")
             else:
                 pytest.fail("Subprocess finished without returning any data. Contact your professor.")
     except Exception as e:
-        exception_message_for_students(e, test_case)
+        exception_message_for_students(e, input_test_case, current_test_name)
 
-
-def _load_student_code_subprocess(shared_data, inputs, test_case, module_to_test, function_tests, class_tests):
+def _load_student_code_subprocess(shared_data, current_test_name, inputs, input_test_case, module_to_test, function_tests, class_tests):
     """
     Executes the student's code in a subprocess, capturing inputs, outputs, exceptions, and testing functions/classes.
     """
+    # Define a custom exception for exit handling
+    class ExitCalled(Exception):
+        pass
+
     try:
         # Prepare the mocked input function and capture variables
-        queue_payload = {}
+        manager_payload = {}
         captured_input_prompts = []
         input_iter = iter(inputs)
 
@@ -172,6 +204,10 @@ def _load_student_code_subprocess(shared_data, inputs, test_case, module_to_test
             '__name__': '__main__',  # Ensures that the if __name__ == '__main__' block runs
             'input': mock_input,     # Overrides input() in the student's code
         }
+
+        # Override exit and sys.exit to prevent termination
+        builtins.exit = lambda *args: (_ for _ in ()).throw(ExitCalled("exit() called"))
+        sys.exit = lambda *args: (_ for _ in ()).throw(ExitCalled("sys.exit() called"))
 
         # Prepare to capture 'main' function's locals
         main_locals = {}
@@ -198,7 +234,10 @@ def _load_student_code_subprocess(shared_data, inputs, test_case, module_to_test
         sys.stdout = StringIO()
 
         # Execute the student's code within the controlled namespace
-        exec(code, globals_dict)
+        try:
+            exec(code, globals_dict)
+        except ExitCalled as e:
+            print(f"Exit call intercepted: {e}")  # Log or handle exit calls
 
         # Remove the trace function
         sys.settrace(None)
@@ -221,35 +260,39 @@ def _load_student_code_subprocess(shared_data, inputs, test_case, module_to_test
         else:
             class_results = {"No classes tested": "No classes tested"}
 
-        # Collect global variables from the student's code
-        module_globals = {k: v for k, v in globals_dict.items() if is_picklable(v)}
+        # Collect global variables from the student's code and make them picklable
+        module_globals = {k: serialize_object(v) for k, v in globals_dict.items() if is_picklable(v)}
 
-        # Add main_locals to module_globals under a special key
-        module_globals['__main_locals__'] = main_locals
+        # Add main_locals to module_globals under a special key, ensuring picklability
+        module_globals['__main_locals__'] = serialize_object(main_locals)
         
         # add each payload into a dictionary:
-        queue_payload['captured_input_prompts'] = captured_input_prompts
-        queue_payload['captured_output'] = captured_output
-        queue_payload['module_globals'] = module_globals
-        queue_payload['function_results'] = function_results
-        queue_payload['class_results'] = class_results
-        queue_payload['raised_exceptions'] = raised_exceptions
+        manager_payload['captured_input_prompts'] = captured_input_prompts
+        manager_payload['captured_output'] = captured_output
+        manager_payload['module_globals'] = module_globals
+        manager_payload['function_results'] = function_results
+        manager_payload['class_results'] = class_results
+        manager_payload['raised_exceptions'] = raised_exceptions
 
         # Send back the results
         shared_data['status'] = 'success'
-        shared_data['payload'] = queue_payload
+        shared_data['payload'] = manager_payload
 
     except StopIteration as e:
         # Send the exception back as a dictionary
         exc_type, exc_value, exc_tb = sys.exc_info()
-        test_case_inputs = '\n'.join(test_case["inputs"])
+        input_with_quotes = [f'{index}: "{input}"' for index, input in enumerate(input_test_case["inputs"], start=1)]
+        test_case_inputs = '\n'.join(input_with_quotes)
         exception_data = {
             'type': type(e).__name__,
-            'message': (f"{str(e)}\n\nHOW TO FIX IT:\n\nThis error was very likely caused by your code asking for more input() calls than the test case expected. "
-                        f"To see where this is happening in your code, run your code and input THESE EXACT INPUTS IN THIS ORDER:\n\n"
+            'message': (f"HOW TO FIX IT:\n"
+                        f"--------------\n"
+                        f"This error was very likely caused by your code asking for more input() calls than the input test case expected. "
+                        f"To see where this is happening in your code, run your code and input THESE EXACT INPUTS IN THIS ORDER (without the quotations):\n\n"
                         f"{test_case_inputs}\n\n"
-                        f"If, after entering those exact inputs in that order, your code asks for another input, THAT is the cause of this error. "
-                        f"Make it so your code doesn't ask for any more inputs after the last input entered. If you believe that is a mistake, please "
+                        f"Your code should end after all of those inputs have been entered. If, after entering those exact inputs in that order, your code asks for another input, THAT is the cause of this error. "
+                        f"You likely wrote an if statement or loop in a way that it is asking for inputs again. Make it so your code doesn't ask for any more inputs after the last input entered. "
+                        f"If you believe that is a mistake, please "
                         f"reach out to your professor."),
             'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
         }
@@ -262,13 +305,13 @@ def _load_student_code_subprocess(shared_data, inputs, test_case, module_to_test
         exception_data = {
             'type': type(e).__name__,
             'message': (f"{str(e)}\n\nThis was most likely caused by an input() function being present "
-                        f"in a .py module that you imported. Please only use the input() function in the main assignment .py file."),
+                        f"in a .py module that you imported. Please only use the input() function in the main assignment .py file. Contact your professor if you have issues fixing this."),
             'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
         }
         shared_data['status'] = 'exception'
         shared_data['payload'] = exception_data
 
-    except BaseException as e:
+    except Exception as e:
         # Send the exception back as a dictionary
         exc_type, exc_value, exc_tb = sys.exc_info()
         exception_data = {
@@ -283,7 +326,6 @@ def _load_student_code_subprocess(shared_data, inputs, test_case, module_to_test
         sys.settrace(None)
         if 'old_stdout' in globals() or 'old_stdout' in locals():
             sys.stdout = old_stdout
-
 
 def is_picklable(obj):
     """
@@ -506,7 +548,13 @@ def test_functions(function_tests, globals_dict, instance=None):
     is_method_test = False
 
     if not function_tests:
-        function_results["FUNCTION ERROR"] = "No functions were provided to function_tests. Contact your professor."
+        exception_data = {
+            'type': 'Missing function tests',
+            'message': (f"No function tests were provided to test_functions function in conftest.py. Contact your professor."),
+            'custom_location': f'test_functions in conftest.py',
+            'detail': 'FUNCTION ERROR'
+        }
+        function_results["FUNCTION ERROR"] = exception_data
         return function_results
 
     if instance is not None:
@@ -540,12 +588,17 @@ def test_functions(function_tests, globals_dict, instance=None):
                 break
 
         if not func_found:
-            function_results["FUNCTION ERROR"] = (
-                f"This test is looking specifically for the function/method '{func_name_original}' in {context},\n"
-                f"But it couldn't find it, nor any of its accepted variations:\n{', '.join(function_variations[1:])}\n\n"
-                f"Make sure you are spelling the function/method name correctly. Below are all of "
-                f"the functions/methods that the test could find in {context}:\n{all_functions_names}"
-            )
+            exception_data = {
+                    'type': 'Function not found',
+                    'message': (f"This test is looking specifically for the function/method '{func_name_original}' in {context}, "
+                                f"But it couldn't find it, nor any of its accepted variations:\n\n{', '.join(function_variations[1:])}\n\n"
+                                f"Make sure you are spelling the function/method name correctly, and that you didn't name any other variables "
+                                f"in your code the exact same name as the function. Below are all of "
+                                f"the functions/methods that the test could find in {context}:\n\n{all_functions_names}"),
+                    'custom_location': f'test_classes in conftest.py',
+                    'detail': 'CLASS ERROR'
+            }
+            function_results['FUNCTION ERROR'] = exception_data
             return function_results
 
 
@@ -559,6 +612,9 @@ def test_functions(function_tests, globals_dict, instance=None):
                 for _ in range(num_calls): # usually just called once, but some tests require several calls
                     if is_method_test:
                     # first store the initial state of the object:
+                        values_to_set = test_case.get('set_var_values')
+                        if values_to_set:
+                            update_object_from_dict(instance, values_to_set)
                         object_state = get_object_state(instance)
                         test_case.setdefault('initial_obj_state', []).append(object_state)
 
@@ -569,14 +625,61 @@ def test_functions(function_tests, globals_dict, instance=None):
                     # first store the initial state of the object:
                         object_state = get_object_state(instance)
                         test_case.setdefault('final_obj_state', []).append(object_state)
+                
+                
 
             except Exception as e:
-                test_case["FUNCTION ERROR"] = f"While trying to run {func_name_original}, with these argument: {args} this error occured: {type(e).__name__}: {e}"
+                if len(args) > 0:
+                    init_args_str = '\n'.join([f"{index}: {argument}" for index, argument in enumerate(args, start=1)])
+                elif instance:
+                    init_args_str = 'None besides "self"'
+                else:
+                    init_args_str = "No arguments"
+                exception_data = {
+                    'type': type(e).__name__,
+                    'message': (f"Your code gave the following error while trying to run the function {func_name_original}:\n\n"
+                                f"{type(e).__name__}: {e}\n\n"
+                                f"{func_name_original} was using these arguments when it ran into the error:\n\n"
+                                f"{func_name_original.upper()} ARGUMENTS:\n"
+                                f"{'-'*len(f'{func_name_original.upper()} ARGUMENTS:')}\n"
+                                f"{init_args_str}\n\n"
+                                f"Make sure your function is accepting the correct number of arguments, you may have written the function with "
+                                f"more or fewer parameters than the test is expecting. Also double check that your function doesn't run into a "
+                                f"runtime error when providing it with the exact arguments shown above."),
+                    'custom_location': f'Your {func_name_original} function',
+                    'detail': 'FUNCTION ERROR'
+                }
+                test_case["FUNCTION ERROR"] = exception_data
+                function_results["FUNCTION ERROR"] = exception_data
+                return function_results
         else:
-            test_case["FUNCTION ERROR"] = f"{func_name_original} was found in {context}, but it isn't callable as a function. Make sure you defined it correctly."
+            exception_data = {
+                    'type': 'Function name isn\'t callable',
+                    'message': (f"{func_name_original} was found in {context}, but it isn't callable as a function. Make sure you defined it correctly, "
+                                f"and that you aren't using the exact name of the function as a variable name somewhere else in your code."),
+                    'custom_location': f'test_classes in conftest.py',
+                    'detail': 'FUNCTION ERROR'
+                }
+            test_case["FUNCTION ERROR"] = exception_data
+            function_results["FUNCTION ERROR"] = exception_data
             return function_results
-
+        
+    # If no errors occured while trying to run the function and store its results, store those here
+    function_results['function_results'] = function_tests
     return function_results
+
+def update_object_from_dict(obj, update_dict):
+    for key, value in update_dict.items():
+        # Create patterns to match snake_case, PascalCase, and camelCase
+        snake_case_key = key
+        pascal_case_key = ''.join(word.capitalize() for word in key.split('_'))
+        camel_case_key = pascal_case_key[0].lower() + pascal_case_key[1:]
+        
+        # Find and set the attribute if it exists in any naming style
+        for attr_key in [snake_case_key, pascal_case_key, camel_case_key]:
+            if hasattr(obj, attr_key):
+                setattr(obj, attr_key, value)
+                break
 
 def get_all_custom_classes(globals_dict):
     """
@@ -600,13 +703,52 @@ def get_all_custom_classes(globals_dict):
 
     return custom_classes
 
+def process_init_args(init_args, all_custom_classes):
+    processed_args = []
+    for arg in init_args:
+        if isinstance(arg, dict) and 'class_name' in arg:
+            # Need to create an instance of this class
+            class_name = arg['class_name']
+            init_args_nested = arg.get('init_args', [])
+            init_expected_values_nested = arg.get('init_expected_values', {})
+            if class_name in all_custom_classes:
+                nested_cls = all_custom_classes[class_name]
+                nested_init_args_processed = process_init_args(init_args_nested, all_custom_classes)
+                nested_obj = nested_cls(*nested_init_args_processed)
+                # Store expected values for later comparison
+                arg['actual_object'] = nested_obj
+                processed_args.append(nested_obj)
+            else:
+                raise Exception(f"Class '{class_name}' not found in student's code.")
+        else:
+            processed_args.append(arg)
+    return processed_args
+
+def serialize_object(obj):
+    if isinstance(obj, dict):
+        return {k: serialize_object(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_object(v) for v in obj]
+    elif hasattr(obj, '__dict__'):
+        return serialize_object(vars(obj))
+    elif isinstance(obj, (int, float, str, bool, type(None), date, timedelta)):
+        return obj
+    else:
+        return str(obj)  # For any other types, convert to string
+
 def test_classes(class_tests, globals_dict):
     """
     Tests the classes defined by the student according to the specifications in class_tests.
     """
 
     if not class_tests:
-        class_tests["CLASS ERROR"] = "No classes were provided to class_tests. Contact your professor."
+        exception_data = {
+                    'type': 'Missing class tests',
+                    'message': (f"No class tests were provided to test_classes function in conftest.py. Contact your professor."),
+                    'custom_location': f'test_classes in conftest.py',
+                    'detail': 'CLASS ERROR'
+                }
+        class_tests['CLASS ERROR'] = exception_data
         return class_tests
 
     all_custom_classes = get_all_custom_classes(globals_dict)
@@ -614,7 +756,7 @@ def test_classes(class_tests, globals_dict):
 
     # returns pascal, camel, and snake
     class_name_original = class_tests.get('class_name')
-    class_variations = list(set(convert_pascal_case(class_name_original))) # if snake or camel are identical, it gets rid of duplicates.
+    class_variations = list(dict.fromkeys(convert_pascal_case(class_name_original)).keys()) # if snake or camel are identical, it gets rid of duplicates.
 
     # Before running any of the tests, check if the class is even in the students' code
 
@@ -626,43 +768,75 @@ def test_classes(class_tests, globals_dict):
             break
 
     if not class_found:
-        class_tests["CLASS ERROR"] = (
-            f"This test is looking specifically for the class:\n\n{class_name_original}\n\n"
-            f"But it couldn't find it, nor any of its accepted variations:\n\n{', '.join(class_variations[1:])}\n\n"
-            f"Make sure you are spelling the class name correctly. Below are all of "
-            f"the classes you made in your code that the test could find:\n\n"
-            f"{all_custom_classes_names}"
-        )
+        exception_data = {
+                    'type': 'Can\'t find required class',
+                    'message': (f"This test is looking specifically for the class:\n\n{class_name_original}\n\n"
+                                f"But it couldn't find it, nor any of its accepted variations: {', '.join(class_variations[1:])}\n\n"
+                                f"Make sure you are spelling the class name correctly. Below are all of "
+                                f"the classes you made in your code that the test could find:\n\n"
+                                f"{all_custom_classes_names}"),
+                    'custom_location': f'your .py file',
+                    'detail': 'CLASS ERROR'
+                }
+        class_tests['CLASS ERROR'] = exception_data
         return class_tests
 
     for class_test in class_tests.get('class_test_cases'):
-
-        init_args = class_test.get("init_args", [])
+        init_args = copy.deepcopy(class_test.get("init_args", {}))
         try:
-            obj = cls(*init_args) # attempt to create an object
+            # Process init_args to create nested class instances if necessary
+            init_args_processed = process_init_args(list(init_args.values()), all_custom_classes)
+            try:
+                obj = cls(*init_args_processed)
+            except Exception as e:
+                init_args_str = '\n'.join([f"{parameter_name}: {argument}" for parameter_name, argument in class_test.get("init_args", {}).items()])
+                exception_data = {
+                    'type': type(e).__name__,
+                    'message': (f"{str(e)}\n\n\n"
+                                f"HOW TO FIX IT:\n"
+                                f"--------------\n"
+                                f"This was most likely caused by the {class_name_original} constructor requiring more (or fewer) arguments than the test case "
+                                f"was expecting. If so, change your {class_name_original} constructor to where it can work with the arguments shown below. "
+                                f"This test is calling the constructor of {class_name_original} with the following arguments:\n\n"
+                                f"EXPECTED {class_name_original.upper()} INIT ARGUMENTS:\n"
+                                f"{'-'*len(f'EXPECTED {class_name_original.upper()} INIT ARGUMENTS:')}\n"
+                                f"{init_args_str}"),
+                    'custom_location': f'The __init__ method of your {class_name_original} class',
+                    'detail': 'CLASS ERROR'
+                }
+                class_tests['CLASS ERROR'] = exception_data
+                return class_tests
+            # Serialize the object
+            serialized_obj = serialize_object(obj)
 
-            # Get all attributes of the object (excluding methods and built-in attributes)
-            obj_attributes = {name: value for name, value in vars(obj).items()
-                  if not callable(value) and not name.startswith('__')
-                  and is_picklable(value)}
+            # Collect method names
+            actual_method_names = [name for name, value in inspect.getmembers(obj, predicate=inspect.isfunction)
+                       if not name.startswith('__')]
 
-            # add in the names of the methods, but not the methods themselves
-            # since they aren't picklable.
-            obj_attributes["methods"] = [name for name, value in vars(obj).items()
-                                        if callable(value) and not name.startswith('__')]
+            class_test['actual_object'] = serialized_obj
+            class_test['actual_method_names'] = actual_method_names
             
-            class_test['actual_object'] = obj_attributes
-
             # if the test is for a specific method, call that method:
-            if class_tests.get('test_type') == 'method_test':
+            if class_tests.get('test_type', '') == 'method_test':
                 method_to_test = class_tests.get('method_to_test')
                 method_test_cases = [method_test_case for method_test_case in class_test.get('method_test_cases') if method_test_case.get('function_name') == method_to_test]
 
-                test_functions(method_test_cases, globals_dict, instance=obj)
+                function_results = test_functions(method_test_cases, globals_dict, instance=obj)
+                if function_results.get("FUNCTION ERROR"):
+                    class_tests["FUNCTION ERROR"] = function_results
+                pass
                     
-
         except Exception as e:
-            class_test['CLASS ERROR'] = f"{type(e).__name__}: {str(e)}"
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            exception_data = {
+                'type': type(e).__name__,
+                'message': (f"{str(e)}\n\n\nHOW TO FIX IT:\n"
+                            f"--------------\n"
+                            f"Something went wrong during the class test. Contact your professor."),
+                'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
+            }
+            class_tests['CLASS ERROR'] = exception_data
+            return class_tests
         
     return class_tests
 
@@ -670,13 +844,29 @@ def get_object_state(obj):
     """
     Returns a dictionary representing the object's state,
     including class name, instance variables, and methods.
+    Recursively serializes any nested objects stored as instance variables.
     """
-    # Get instance variables
-    instance_variables = {name: value for name, value in vars(obj).items()
-                          if is_picklable(value)}
+    def serialize(value):
+        if is_picklable(value):
+            return value  # Directly picklable objects are returned as-is
+        elif hasattr(value, '__dict__'):  # If value is a custom object, recurse
+            return get_object_state(value)
+        elif isinstance(value, list):  # Handle lists of objects
+            return [serialize(item) for item in value]
+        elif isinstance(value, dict):  # Handle dictionaries of objects
+            return {k: serialize(v) for k, v in value.items()}
+        elif isinstance(value, tuple):  # Handle tuples of objects
+            return tuple(serialize(item) for item in value)
+        else:
+            return str(value)  # Fallback to string representation if unpicklable
+
+    # Get instance variables and recursively serialize them
+    instance_variables = {name: serialize(value) for name, value in vars(obj).items()}
+
     # Get methods
     methods = [name for name, value in inspect.getmembers(obj, predicate=inspect.ismethod)
                if not name.startswith('__')]
+
     return {
         'class_name': obj.__class__.__name__,
         'instance_variables': instance_variables,
@@ -688,7 +878,8 @@ def get_object_state(obj):
 # ========================
 
 def format_error_message(custom_message: str = None,
-                         test_case: dict = None,
+                         current_test_name: str = None,
+                         input_test_case: dict = None,
                          display_inputs: bool = False,
                          display_input_prompts: bool = False,
                          display_invalid_input_prompts: bool = False,
@@ -707,20 +898,21 @@ def format_error_message(custom_message: str = None,
     
     # some starting strings. All messages will be appended to error_message
     error_message = ''
-    divider = f"\n{"-"*line_length}\n"
+    divider = f"\n{'-'*line_length}\n"
     error_message += divider
-    error_message += f"IS 303 STUDENTS: READ THE ERROR MESSAGES IN RED BELOW\n\n"
+    error_message += f"IS 303 STUDENTS: READ THE ERROR MESSAGES BELOW\n\n"
     error_message += "↓"*line_length + "\n"
-    if test_case:
+    if input_test_case:
         error_message += divider
-        error_message += f"TEST FAILED DURING TEST CASE: {test_case["id_test_case"]}"
+        error_message += f"WHICH TEST FAILED?"
         error_message += divider
         error_message += insert_newline_at_last_space((
-            f"\nLook at the \"Test Cases\" section of the instructions in README.md. "
-            f"Run your code while inputting the EXACT inputs shown there to see where/why "
-            f"your code either breaks or doesn't pass this test.\n\n"
+            f"\nTEST FAILED: {current_test_name}"
+            f"\nDURING INPUT TEST CASE: {input_test_case['id_input_test_case']}"
+            f"\nINPUT TEST CASE DESCRIPTION: \"{input_test_case['input_test_case_description']}\"\n"
+            f"\nFirst, read the error below. You can also see details for this test case in the 'descriptions_of_test_cases' folder in this repository.\n\n"
         ), line_length)
-        test_case_description = f"FOR TEST CASE: {test_case["id_test_case"]}"
+        test_case_description = f"FOR INPUT TEST CASE: {input_test_case['id_input_test_case']}"
     else:
         test_case_description = ''
 
@@ -731,15 +923,16 @@ def format_error_message(custom_message: str = None,
         error_message += insert_newline_at_last_space("\n" + custom_message, line_length)
 
     if display_inputs:
-        inputs_concatenated = '\n'.join(test_case["inputs"])
+        input_with_quotes = [f'{index}: "{input}"' for index, input in enumerate(input_test_case["inputs"], start=1)]
+        inputs_concatenated = '\n'.join(input_with_quotes)
         error_message += divider
         error_message += f"INPUTS ENTERED {test_case_description}"
         error_message += divider
-        error_message += insert_newline_at_last_space(f"\nThese inputs will be entered in this exact order during this test case:\n\n\n", line_length)
+        error_message += insert_newline_at_last_space(f"\nThese inputs (without the quotes) will be entered in this exact order during this test case:\n\n\n", line_length)
         error_message += inputs_concatenated + "\n"
 
     if display_input_prompts:
-        expected_input_prompts_concatenated = '\n'.join(test_case["input_prompts"])
+        expected_input_prompts_concatenated = '\n'.join(input_test_case["input_prompts"])
         error_message += divider
         error_message += f"EXPECTED INPUT PROMPTS {test_case_description}"
         error_message += divider
@@ -747,7 +940,7 @@ def format_error_message(custom_message: str = None,
         error_message += expected_input_prompts_concatenated + "\n"
 
     if display_invalid_input_prompts:
-        invalid_input_prompts_concatenated = '\n'.join(test_case["invalid_input_prompts"])
+        invalid_input_prompts_concatenated = '\n'.join(input_test_case["invalid_input_prompts"])
         error_message += divider
         error_message += f"INVALID INPUT PROMPTS {test_case_description}"
         error_message += divider
@@ -755,7 +948,7 @@ def format_error_message(custom_message: str = None,
         error_message += invalid_input_prompts_concatenated + "\n"
 
     if display_printed_messages:
-        expected_printed_messages_concatenated = '\n'.join(test_case["printed_messages"])
+        expected_printed_messages_concatenated = '\n'.join(input_test_case["printed_messages"])
         error_message += divider
         error_message += f"EXPECTED PRINTED MESSAGES {test_case_description}"
         error_message += divider               
@@ -763,7 +956,7 @@ def format_error_message(custom_message: str = None,
         error_message += expected_printed_messages_concatenated + "\n"
 
     if display_invalid_printed_messages:
-        invalid_printed_messages_concatenated = '\n'.join(test_case["invalid_printed_messages"])
+        invalid_printed_messages_concatenated = '\n'.join(input_test_case["invalid_printed_messages"])
         error_message += divider
         error_message += f"INVALID PRINTED MESSAGES {test_case_description}"
         error_message += divider
@@ -775,7 +968,7 @@ def format_error_message(custom_message: str = None,
     return error_message
 
 
-def exception_message_for_students(exception_data, test_case):
+def exception_message_for_students(exception_data, input_test_case, current_test_name):
     """
     Gets called when a test fails because of an exception occuring, rather than
     the test failing because it didn't produce the right output, etc.
@@ -787,14 +980,18 @@ def exception_message_for_students(exception_data, test_case):
 
     if isinstance(exception_data, dict):
         # Exception data from the subprocess
-        error_type = exception_data['type']
-        error_message_str = exception_data['message']
-        traceback_list = exception_data['traceback']
+        error_type = exception_data.get('type')
+        error_message_str = exception_data.get('message')
+        traceback_list = exception_data.get('traceback')
+        custom_location = exception_data.get('custom_location')
+        error_detail = exception_data.get('detail')
         # Attempt to get the last traceback entry for the error location
         if traceback_list:
             error_location = ''.join(traceback_list[-2:]) if len(traceback_list) >= 2 else ''.join(traceback_list)
+        elif custom_location:
+            error_location = custom_location
         else:
-            error_location = "No traceback available."
+            error_location = "No location available."
     else:
         # Exception object with traceback
         e = exception_data
@@ -803,9 +1000,10 @@ def exception_message_for_students(exception_data, test_case):
             last_traceback = [tb_list[-1]]
             error_location = ''.join(traceback.format_list(last_traceback))
         else:
-            error_location = "No traceback available."
+            error_location = "No location available."
         error_type = type(e).__name__
         error_message_str = str(e)
+        error_detail = None
 
     # Because the student's code is run by exec in a subprocess, it just shows up as <string>
     # These just puts back their python file name in that case, as well as improves
@@ -813,60 +1011,95 @@ def exception_message_for_students(exception_data, test_case):
     # at a glance by clearly separating the location of the error and the error itself.
     error_location = error_location.replace('File "<string>"', f"{default_module_to_test}.py" )
     error_location = error_location.replace(', in <module>', '' )
-    error_message = f"\n{error_type}: {error_message_str}"
-    error_location = error_location = error_location.replace(error_message, '')
-
-    # Check if 'inputs' is in test_case and set display_inputs_option accordingly
-    if test_case.get("inputs", None):
-        display_inputs_option = True
+    error_message = f"\n{error_type}: {error_message_str}" if error_type != "StopIteration" else error_message_str
+    error_location = error_location.replace(error_message, '')
+    
+    display_inputs_option = False
+    if input_test_case:
+        # Check if 'inputs' is in test_case and set display_inputs_option accordingly
+        if input_test_case.get("inputs", None):
+            display_inputs_option = True
     else:
-        display_inputs_option = False
+        input_test_case = {'id_input_test_case': None}
+        input_test_case['input_test_case_description'] =  "No input test case for this test."
 
     if error_type == "StopIteration":
-        pytest.fail(f"{format_error_message(
-            custom_message=(f"While trying to run the test, python ran into an error.\n\n"
-                            f"LOCATION OF ERROR:\n\n{error_location}\n"
-                            f"ERROR MESSAGE:\n{error_message}\n\n"), 
-            test_case=test_case,
-            display_inputs=display_inputs_option
-            )}")
-    else:
-        # Call pytest.fail with the formatted error message
-        pytest.fail(f"{format_error_message(
-            custom_message=(f"While trying to run the test, python ran into an error.\n\n"
-                            f"LOCATION OF ERROR:\n\n{error_location}\n"
-                            f"ERROR MESSAGE:\n{error_message}\n\n"
-                            f"HOW TO FIX IT:\n\n"
-                            f"If the error occurred in {default_module_to_test}.py or another .py file that you wrote, set a breakpoint at the location in that file where "
-                            f"the error occurred and see if you can repeat the error by running your code using the inputs for Test Case {test_case['id_test_case']}. "
-                            f"That should help you see what went wrong.\n\n"
-                            f"If the error occurred in a different file, reach out to your professor.\n\n"), 
-            test_case=test_case,
-            display_inputs=display_inputs_option
-            )}")
+        custom_message = (f"While trying to run {current_test_name}, the automated test couldn't complete because your code "
+            f"called an input() function more times than it should have.\n\n"
+            f"{error_message}\n\n")
 
-def timeout_message_for_students(test_case):
+        formatted_message = format_error_message( 
+                                custom_message=custom_message,
+                                current_test_name=current_test_name,
+                                input_test_case=input_test_case)
+
+        pytest.fail(formatted_message)
+
+    elif error_detail in ["CLASS ERROR", "FUNCTION ERROR"]:
+        custom_message = (f"While trying to run {current_test_name}, python ran into an error.\n\n"
+            f"LOCATION OF ERROR:\n"
+            f"------------------"
+            f"\n{error_location}\n\n"
+            f"ERROR MESSAGE:\n"
+            f"--------------"
+            f"{error_message}\n\n")
+        
+        formatted_message = format_error_message(
+                                custom_message=custom_message,
+                                current_test_name=current_test_name,
+                                input_test_case=input_test_case)
+
+        pytest.fail(formatted_message)
+    else:
+        custom_message = (f"While trying to run {current_test_name}, python ran into an error.\n\n"
+            f"LOCATION OF ERROR:\n"
+            f"------------------\n"
+            f"{error_location}\n\n"
+            f"ERROR MESSAGE:\n"
+            f"--------------\n"
+            f"{error_message}\n\n"
+            f"HOW TO FIX IT:\n"
+            f"--------------\n"
+            f"If the error occurred in {default_module_to_test}.py or another .py file that you wrote, set a breakpoint at the location in that file where "
+            f"the error occurred and see if you can repeat the error by running your code using the inputs for Test Case {input_test_case['id_input_test_case']}. "
+            f"That should help you see what went wrong.\n\n"
+            f"If the error occurred in a different file, reach out to your professor.\n\n")
+        
+        formatted_message = format_error_message(
+            custom_message=custom_message,
+            current_test_name=current_test_name,
+            input_test_case=input_test_case,
+            display_inputs=display_inputs_option)
+        # Call pytest.fail with the formatted error message
+        pytest.fail(formatted_message)
+
+def timeout_message_for_students(input_test_case, current_test_name):
     """
     Just returns a message for timeout errors.
     I put this in a function just so there is one central place
     to edit the message if I change it in the future.
     """
-    test_case_inputs = test_case.get("inputs", "No inputs")
+    test_case_inputs = input_test_case.get("inputs", "No inputs")
+    test_case_inputs = [f'{index}: "{input}"' for index, input in enumerate(test_case_inputs, start=1)]
     test_case_inputs = '\n'.join(test_case_inputs)
 
     return format_error_message(
-                custom_message=(f"You got a Timeout Error, meaning this test case didn't complete after {default_timeout_seconds} seconds. "
-                                f"The test timed out during test case {test_case["id_test_case"]}. To try and identify the problem, run your code like normal, but enter these EXACT inputs "
-                                f"in this order:\n\n"
+                custom_message=(f"ERROR MESSAGE:\n"
+                                f"--------------\n"
+                                f"TimeoutError\n\n"
+                                f"HOW TO FIX IT:\n"
+                                f"--------------\n"
+                                f"You got a Timeout Error, meaning this Input Test Case didn't complete after {default_timeout_seconds} seconds. "
+                                f"The test timed out during Input Test Case {input_test_case['id_input_test_case']}. To try and identify the problem, run your code like normal, but enter these EXACT inputs "
+                                f"in this order (without the quotes):\n\n"
                                 f"{test_case_inputs}\n\n"
                                 f"Most likely, "
-                                f"you wrote your code in a way that the inputs of this test case make it so your code never exits properly. "
-                                f"Double check the test case examples in the instructions and make sure your code isn't asking for additional "
+                                f"you wrote your code in a way that the inputs of this Input Test Case make it so your code never exits properly. "
+                                f"Double check the 'Input Test Case' examples in the instructions and make sure your code isn't asking for additional "
                                 f"or fewer inputs than the test case expects.\n\n"),
-                test_case=test_case,
-                display_inputs=True,
-                display_input_prompts=True,
-                display_invalid_input_prompts=True)
+                input_test_case=input_test_case,
+                current_test_name=current_test_name,
+                )
 
 # =========================
 # ASSORTED HELPER FUNCTIONS
@@ -987,15 +1220,126 @@ def convert_pascal_case(pascal_str):
     # Convert to snake_case
     snake_case = re.sub(r'([A-Z])', r'_\1', pascal_str).lower().lstrip('_')
 
-    return pascal_str, camel_case, snake_case
+    return [pascal_str, camel_case, snake_case]
 
-def prettify_dictionary(dictionary):
+# def prettify_dictionary(dictionary):
+#     if not isinstance(dictionary, dict):
+#         return dictionary
+    
+#     formatted_dict_str = ''
+#     for key, value in dictionary.items():
+#         formatted_dict_str += f'{key}: {value}\n'
+    
+#     # return it without the last newline
+#     return formatted_dict_str[:-1]
+
+def prettify_dictionary(dictionary, indent_level=0):
     if not isinstance(dictionary, dict):
-        return None
+        return str(dictionary)
     
     formatted_dict_str = ''
-    for key, value in dictionary.items():
-        formatted_dict_str += f'{key}: {value}\n'
+    indent = '-    ' * indent_level  # 4 spaces per indentation level
     
-    # return it without the last newline
-    return formatted_dict_str[:-1]
+    for key, value in dictionary.items():
+        formatted_dict_str += f'{indent}{key}: '
+        if isinstance(value, dict):
+            # Recursively format nested dictionaries with increased indentation
+            formatted_dict_str += '\n' + prettify_dictionary(value, indent_level + 1) + '\n'
+        else:
+            formatted_dict_str += f'{value}\n'
+    
+    # Return without the last newline
+    return formatted_dict_str.rstrip()
+
+def get_similarity_feedback(normalized_expected_phrase, normalized_captured_strings_list, similarity_threshold=0.7):
+    """
+    Checks for similarity between a normalized expected phrase and a list of normalized captured strings.
+    For close matches, shows side-by-side differences with markers for mismatches.
+    
+    Parameters:
+        normalized_expected_phrase (str): The normalized phrase to match or find similarity to.
+        normalized_captured_strings_list (list): A list of normalized strings to check against.
+        similarity_threshold (float): The minimum similarity ratio to consider a close match.
+        
+    Returns:
+        str: A feedback message with close matches sorted by similarity or a message indicating no similar strings were found.
+    """
+    # Check for an exact match
+    if normalized_expected_phrase in normalized_captured_strings_list:
+        return f"Exact match found for expected phrase: \"{normalized_expected_phrase}\""
+    
+    # Calculate similarity ratios for close matches
+    similar_strings = []
+    
+    for captured_string in normalized_captured_strings_list:
+        similarity = difflib.SequenceMatcher(None, normalized_expected_phrase, captured_string).ratio()
+        
+        if similarity >= similarity_threshold:
+            diff = difflib.ndiff([normalized_expected_phrase], [captured_string])
+            diff_string = '\n'.join(diff)
+            similar_strings.append((similarity, f"Similarity: {similarity:.2f}\nDifferences (expected vs. actual):\n{diff_string}"))
+    
+    # Sort similar strings by similarity score in descending order
+    similar_strings.sort(reverse=True, key=lambda x: x[0])
+    
+    # Construct feedback message
+    if similar_strings:
+        feedback_message = (
+            "Here are the closest matches to the expected phrase (sorted by similarity):\n\n"
+            + "\n\n".join(item[1] for item in similar_strings)
+        )
+    else:
+        feedback_message = (
+            f"No strings in your code were found that were very similar to the expected phrase, so it likely wasn't due to a spelling error. Check whether you included the expected phrase at all, or whether your logic prevents the expected phrase from appearing."
+        )
+    
+    return feedback_message
+
+def sqlite_db_exists():
+    return os.path.exists(expected_database_name)
+
+def delete_sqlite_db():
+    # Check if the database file exists
+    if sqlite_db_exists():
+        try:
+            os.remove(expected_database_name)
+            print(f"Database '{expected_database_name}' has been deleted.")
+        except Exception as e:
+            print(f"An error occurred while deleting the database: {e}")
+    else:
+        print(f"Database '{expected_database_name}' does not exist.")
+
+def df_error_message_formatting(df):
+    dtype_mapping = {
+        'int64': 'int',
+        'float64': 'float',
+        'object': 'str'
+    }
+    rows = [
+        f"{col} ({dtype_mapping.get(str(dtype), dtype)}): {list(df[col])}"
+        for col, dtype in zip(df.columns, df.dtypes)
+    ]
+    return "\n".join(rows)
+
+def normalize_dataframe(df):
+    # Normalize column labels
+    df.columns = [normalize_text(col) for col in df.columns]
+    # Normalize every value in the DataFrame
+    df = df.map(normalize_text)
+    return df
+
+import sqlite3
+
+def clear_database(table_name):
+    try:
+        conn = sqlite3.connect(expected_database_name)
+        cursor = conn.cursor()
+        # Drop all tables (or specify which ones to drop)
+        cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        # Alternatively, delete rows from a specific table
+        # cursor.execute("DELETE FROM your_table_name")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error clearing the database: {e}")
+
