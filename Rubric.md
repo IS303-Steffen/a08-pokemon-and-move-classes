@@ -85,30 +85,4 @@ The tests will ignore spacing, capitalization, and punctuation, but you will fai
 </table>
 
 ## Test Cases
-If you fail a test during a specific test case, see the `descriptions_of_test_cases` folder for the following:
-<table border="1" style="width: 100%; text-align: left;">
-  <tr>
-    <th>Test Case</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td>Input Test Case 01</td>
-    <td>Valid input for dollars and currency</td>
-  </tr>
-  <tr>
-    <td>Input Test Case 02</td>
-    <td>Valid inputs for dollar and currency, but with space before and after each input, as well as lowercased currency.</td>
-  </tr>
-  <tr>
-    <td>Input Test Case 03</td>
-    <td>Using an improper dollar amount</td>
-  </tr>
-  <tr>
-    <td>Input Test Case 04</td>
-    <td>Using an improper currency name</td>
-  </tr>
-  <tr>
-    <td>Input Test Case 05</td>
-    <td>Using improper dollar amounts and currency names multiple times</td>
-  </tr>
-</table>
+See the `descriptions_of_test_cases` folder for the inputs used in each of the class and method tests.
