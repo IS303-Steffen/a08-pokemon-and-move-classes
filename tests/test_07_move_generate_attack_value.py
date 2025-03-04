@@ -60,9 +60,14 @@ def test_07_move_generate_attack_value(current_test_name, input_test_cases, clas
 
                 for actual_return_value in actual_return_values_list:
                     low_bound, high_bound = expected_return_value_tuple
-                    if not (low_bound <= actual_return_value and actual_return_value <= high_bound):
+                    try:
+                        if not (low_bound <= actual_return_value and actual_return_value <= high_bound):
+                            found_value_outside_range = True
+                            break
+                    except TypeError:
                         found_value_outside_range = True
                         break
+
 
                 assert not found_value_outside_range, format_error_message(
                     custom_message=(f"When the values for the low and high attack values are {low_bound} and {high_bound}, the method {method_to_test} is expected to return a value (inclusive) between:\n\n"
