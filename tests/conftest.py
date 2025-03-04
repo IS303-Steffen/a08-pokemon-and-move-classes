@@ -62,6 +62,24 @@ CURRENT_DIR = os.path.dirname(__file__)
 
 expected_database_name = None
 
+
+# =============
+# VERSION CHECK
+# =============
+
+# ANSI escape codes for colors
+YELLOW_BOLD = "\033[1;33m"
+RESET = "\033[0m"
+
+def pytest_sessionstart(session):
+    """Print a warning if Python version is below 3.9."""
+    if sys.version_info < (3, 9):
+        print(
+            f"{YELLOW_BOLD}\n"
+            "⚠️ WARNING: You are running a version of Python < 3.9. These tests have only been tested with Python 3.9 and up, so some tests may not behave as expected!\n"
+            f"{RESET}"
+        )
+
 # ========
 # FIXTURES
 # ========
