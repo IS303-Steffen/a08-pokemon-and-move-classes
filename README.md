@@ -51,7 +51,7 @@ I list out all the classes here for reference. However, I recommend you just sta
   - `get_info`
     - returns a string with the name, elemental_type and hit_points
   - `heal`
-    - adds 15 hit points to `hit_points` and prints out a message with the new number of hit_points.
+    - adds 15 hit points to `hit_points` and prints out a message with the new number of hit_points. Shouldn't return anything.
 
 
 ## Logical Flow:
@@ -104,7 +104,7 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
     - `<Pokemon name> - Type: <elemental type> - Hit Points: <hit points>`
   - For example for a water type pokemon called Squirtle with 65 hit points the returned string would look like:
     - Squirtle – Type: Water – Hit Points: 65`
-  - Create a method called `heal` with just `self` as a parameter. It increases the current value of `hit_points` by 15 and prints out a message with the Pokémon’s `name` and what their new value of `hit_points` are
+  - Create a method called `heal` with just `self` as a parameter. It increases the current value of `hit_points` by 15 and prints out a message with the Pokémon’s `name` and what their new value of `hit_points` are. It should print out the message directly in the method, and not return anything.
     - For example, if Squirtle had 65 hit points and the heal method was run on it, it would print:
       - `Squirtle has been healed to 80 hit points.`
 - Create 3 `Pokemon` objects
