@@ -88,7 +88,7 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
   - Randomly select a `Move` object from the list you created
   - Print out the result of the `get_info` method of the randomly selected object.
   - Print out `Generated attack value: ` and then the returned value from running the `generate_attack_value` method on the randomly selected object.
-  - Then delete the move from the list of moves.
+  - Then delete the move from the list of moves. This ensures that you won't randomly select the same move twice. If you randomly select the same move twice, the automated tests won't pass.
 - After finishing the loop, to add a pause in your program, add this line of code:
   - `input(“Press enter to continue...)`
   - The above code doesn’t store anything, but it makes your program pause until you press enter (or return) on your keyboard. We’ll use the above code more in the future project, but put it here just to get familiar with it. 
