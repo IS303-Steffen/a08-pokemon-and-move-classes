@@ -13,7 +13,7 @@ def test_08_sufficient_comments(current_test_name):
     rec = pc_get_or_create(current_test_name, max_score)
 
     try:
-        required_num_comments = 15
+        required_num_comments = 7
         num_comments = 0
         modules_to_open = [default_module_to_test]
 

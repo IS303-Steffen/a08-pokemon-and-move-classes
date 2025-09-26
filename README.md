@@ -1,13 +1,13 @@
-#### Assignment 9
+#### Assignment 8
 # Pokémon and Move Classes
 
-The purpose of this assignment is to practice the syntax of classes and creating objects. This is an individual assignment, but it is preparation for your next project, “P1 – Pokémon Battle”, which is a group project.
+The purpose of this assignment is to practice the syntax of classes and creating objects. This is an individual assignment, but it is preparation for your first project.
 
 You will create 3 `Pokemon` objects, and 9 `Move` objects. If you’ve never heard of or played Pokémon, they are popular fictional creatures that learn “moves” which are attacks or abilities that they perform. Pokémon and moves have elemental types, like “Fire”, “Water”, “Grass”, and “Normal”. 
 
 In this assignment you will just create the objects (with their attributes and methods), and practice putting the objects in lists and accessing their attributes and methods. However, during the group project, you will have the objects interact with each other in a “battle”. You don’t have to have any prior knowledge of Pokémon to do this assignment and the upcoming project, but it may help you to <a href="https://www.youtube.com/clip/Ugkx_pVqGoZu4Vx3ux5fjGtyF28lin6_e-qW">watch this clip</a> for an idea of what Pokémon interactions are like: 
 
-You will put your code in the `a09_pokemon_and_move_classes.py` file. Do not edit or delete any other files.
+You will put your code in the `a08_pokemon_and_move_classes.py` file. Do not edit or delete any other files.
 
 ## Libraries Required:
 - `random`
@@ -122,6 +122,16 @@ Moves represent actions that a Pokémon can take. They have a name (like “Tack
 - Put the 3 `Pokemon` objects into a list
 - Loop through the list and print out the result of `get_info` on each `Pokemon` object in the list.
 
+## Rubric
+Note that because this assignment depends on random number generation, some of the tests take a few seconds longer to run because they are running many times to test out many different number generation possibilities.
+
+- See `RUBRIC.md` for details on each of the tests you're scored on.
+- To see what score you'll receive, run the tests using the testing tab (it looks like a beaker).
+    - In the testing tab, press `Configure Python Tests`, then choose `pytest`, then `tests`, and then press the `Run Tests` button.
+        - If you accidentally choose the wrong options for `Configure Python Tests`, to choose again, go to `View` > `Command Palette` and then type `Python: Configure Tests` and hit enter. Then choose the options above again.
+- To see your results and any error messages, right click the `TEST_RESULTS_SUMMARY.md` file and choose `Open Preview`.
+
+
 ## Example Output:
 
 Note the specific moves that print out will be different each time the program is run since you are randomly selecting them from a list:
@@ -141,7 +151,4 @@ Bulbasaur - Type: Grass - Hit Points: 60
 Charmander - Type: Fire - Hit Points: 70
 Squirtle - Type: Water - Hit Points: 65
 ```
-
-## Grading Rubric
-See the Rubric.md file. Remember to right click and select "Open Preview" to see it formatted so it is readable.
 

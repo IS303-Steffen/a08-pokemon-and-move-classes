@@ -129,6 +129,9 @@ def test_01_printed_messages(current_test_name, input_test_cases):
                     )
                     rec.fail_case(case_id="Default", reason="printed message mismatch", custom_message=formatted)
                     return
+                
+        rec.pass_case(case_id="Default", case_type="printed messages")
+
 
 
     # assert raises an AssertionError, but I don't want to actually catch it

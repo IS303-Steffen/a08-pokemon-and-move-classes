@@ -1,4 +1,4 @@
-max_score = 10  # This value is pulled by yml_generator.py to assign a score to this test.
+max_score = 15  # This value is pulled by yml_generator.py to assign a score to this test.
 from conftest import (
     normalize_text,
     load_student_code,
