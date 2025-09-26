@@ -127,7 +127,7 @@ tackle_generate_attack_value = MethodTestCase(
     args=[],
     expected_return_value=(5, 20),
     expected_object_update=None,
-    num_calls=100   
+    num_calls=200   
 )
 
 water_gun_generate_attack_value = MethodTestCase(
@@ -135,7 +135,7 @@ water_gun_generate_attack_value = MethodTestCase(
     args=[],
     expected_return_value=(5, 15),
     expected_object_update=None,
-    num_calls=100   
+    num_calls=200   
 )
 
 # =======================

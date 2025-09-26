@@ -1,10 +1,19 @@
 max_score = 1 # This value is pulled by yml_generator.py to assign a score to this test.
 import re
-from conftest import default_module_to_test, format_error_message, exception_message_for_students
+from conftest import (
+    default_module_to_test,
+    format_error_message,
+    exception_message_for_students,
+    pc_get_or_create,
+    pc_finalize_and_maybe_fail,
+    record_failure
+)
 
-def test_08_sufficient_comments():
+def test_08_sufficient_comments(current_test_name):
+    rec = pc_get_or_create(current_test_name, max_score)
+
     try:
-        required_num_comments = 7
+        required_num_comments = 15
         num_comments = 0
         modules_to_open = [default_module_to_test]
 
@@ -26,14 +35,22 @@ def test_08_sufficient_comments():
             # Count total number of comments
             num_comments += len(comments)
 
-        # Ensure there are at least X comments
-        assert num_comments >= required_num_comments,format_error_message(
-        f"Not enough comments found. You need at least {required_num_comments}. "
-        f"Only {num_comments} comment(s) detected.")
-    
-    except AssertionError:
-        raise
-    
+        # If not enough comments, record failure (don’t raise here; finalizer will raise once)
+        if num_comments < required_num_comments:
+            custom_msg = format_error_message(
+                custom_message=f"Not enough comments found. You need at least {required_num_comments}. "
+                               f"Only {num_comments} comment(s) detected.",
+                current_test_name=current_test_name,
+                input_test_case=None
+            )
+            record_failure(current_test_name, formatted_message=custom_msg, input_test_case=None, reason="binary test fail")
+            return  # allow finalizer to handle overall failure
+
+        # Passed: record a passing case so summary shows 1/1
+        rec.pass_case("ok")
+
     except Exception as e:
-        test_case = {"id_test_case": None}
-        exception_message_for_students(e, test_case)
+        input_test_case = None
+        exception_message_for_students(e, input_test_case, current_test_name)
+    finally:
+        pc_finalize_and_maybe_fail(rec)

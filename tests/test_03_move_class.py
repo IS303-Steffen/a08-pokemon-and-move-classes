@@ -1,11 +1,21 @@
 max_score = 15  # This value is pulled by yml_generator.py to assign a score to this test.
-from conftest import load_student_code, format_error_message, exception_message_for_students, normalize_text, prettify_dictionary
-#from test_cases_classes_final import class_test_cases
-from collections.abc import Iterable
-import pytest
+from conftest import (
+    normalize_text,
+    load_student_code,
+    format_error_message,
+    exception_message_for_students,
+    prettify_dictionary,
+    pc_get_or_create,
+    pc_finalize_and_maybe_fail,
+    unmangle_keys,
+    unmangle_name,
+    default_module_to_test
+)
+
 
 def test_03_move_class(current_test_name, input_test_cases, class_test_cases):
     try:
+        rec = pc_get_or_create(current_test_name, max_score)
         # Ensure test_cases is valid and iterable
         if not isinstance(input_test_cases, list):
             input_test_case = {"id_input_test_case": None}
@@ -17,13 +27,16 @@ def test_03_move_class(current_test_name, input_test_cases, class_test_cases):
         inputs = input_test_case["inputs"]
 
         # Name of the class being tested:
-        class_name = "Move"
+        class_name = "Pokemon"
         class_test_cases_payload = {'class_name': class_name}
         class_test_cases_payload['class_test_cases'] = class_test_cases.get(class_name)
         class_test_cases_payload['test_type'] = 'class_test'
 
         # Load the student's code and test classes
         manager_payload = load_student_code(current_test_name, inputs, input_test_case, class_tests=class_test_cases_payload)
+
+        if not manager_payload:
+            return # if there was an error in running student code, it's already been logged. Just skip to the next test case.
 
         # first check if there was an error trying to run the code
         if manager_payload.get('class_results').get('CLASS ERROR') is not None:
@@ -32,22 +45,28 @@ def test_03_move_class(current_test_name, input_test_cases, class_test_cases):
                                     custom_message=custom_message, 
                                     input_test_case=input_test_case,
                                     current_test_name=current_test_name)
-            pytest.fail(formatted_message)
-
+            rec.fail_case(
+                case_id=f"class:{class_name}:setup",
+                custom_message=formatted_message,
+                case_type="class",
+                label=f"{class_name} (setup)"
+            )
+            return
+            
         class_results_list = manager_payload.get('class_results').get('class_test_cases')
 
         # loop through each class test case
         for class_result in class_results_list:
             # check if each expected value is present in the class
-
+            index = 1
             for expected_var_name, expected_var_value in class_result['init_expected_values'].items():
                         
                 # Checks for a match among the variable names (normalized) and values (normalized)
                 expected_value_found = False
-                for actual_var_name, actual_var_value in class_result['actual_object'].items():
+                for actual_var_name, actual_var_value in class_result['actual_object'].get("__data__").items():
                     # check the variable names
-                    normalized_expected_name = normalize_text(expected_var_name)
-                    normalized_actual_name = normalize_text(actual_var_name)
+                    normalized_expected_name = normalize_text(unmangle_name(expected_var_name))
+                    normalized_actual_name = normalize_text(unmangle_name(actual_var_name))
                     expected_name_match = normalized_expected_name == normalized_actual_name
 
                     # check the variable values
@@ -73,38 +92,51 @@ def test_03_move_class(current_test_name, input_test_cases, class_test_cases):
                     
                     normalized_expected_value = prettify_dictionary(normalized_expected_value)
 
-                    actual_obj_values_normalized = normalize_text(class_result['actual_object'])
-                    actual_obj_values_normalized.pop('methods', None)
-                    actual_obj_values_normalized = prettify_dictionary(actual_obj_values_normalized)
+                    # Unmangle all keys to logical names for a fair, name-style-agnostic comparison/readout
+                    actual_data_unmangled = unmangle_keys(class_result['actual_object'].get("__data__"))
+                    actual_data_unmangled.pop('methods', None)
 
-                    for original, replacement in [('soccerteam', '__'), ('sponsoredteam', '__')]:
-                        normalized_expected_name = normalized_expected_name.replace(original, replacement)
-                        normalized_expected_value = str(normalized_expected_value).replace(original, replacement)
-                        actual_obj_values_normalized = actual_obj_values_normalized.replace(original, replacement)
+                    # Normalize + prettify for the message
+                    actual_obj_values_normalized = prettify_dictionary(normalize_text(actual_data_unmangled))
+                    actual_obj_values_normalized = actual_obj_values_normalized.replace('wins', '__wins').replace('losses', '__losses')
+                    normalized_expected_name_error_str = normalized_expected_name.replace('wins', '__wins').replace('losses', '__losses')
 
-                assert expected_value_found, format_error_message(
-                    custom_message=(f"When creating an object from your {class_name} class with the following arguments passed into your constructor:\n\n"
-                                    f"{init_args_str}\n\n"
-                                    f"The created object was expected to have a variable with this name and value (ignoring punctuation / capitalization):\n\n"
-                                    f"EXPECTED VARIABLE NAME:\n"
-                                    f"-----------------------\n"
-                                    f"{normalized_expected_name}\n\n"
-                                    f"EXPECTED DATA TYPE:\n"
-                                    f"-------------------\n"
-                                    f"{type_str}\n\n"
-                                    f"EXPECTED VALUE:\n"
-                                    f"---------------\n"
-                                    f"{normalized_expected_value}\n\n"
-                                    f"But no variable was found in your object with a matching variable name and value. "
-                                    f"Below are all the variables contained in your {class_name} object, ignoring punctuation / capitalization for both the variable name and value:\n\n"
-                                    f"YOUR ACTUAL OBJECT:\n"
-                                    f"---------------\n"
-                                    f"{actual_obj_values_normalized}\n\n"),
-                    current_test_name=current_test_name,
-                    input_test_case=input_test_case,
-                )
+                    # the actual error message creation
+                    formatted = format_error_message(
+                        custom_message=(f"When creating an object from your {class_name} class with the following arguments passed into your constructor:\n"
+                                        f"```\n{init_args_str}\n```\n"
+                                        f"The created object was expected to have a variable with this name and value (ignoring punctuation / capitalization):\n\n"
+                                        f"### Expected variable name:\n"
+                                        f"```\n{normalized_expected_name_error_str}\n```\n"
+                                        f"### Expected data type:\n"
+                                        f"```\n{type_str}\n```\n"
+                                        f"### Expected value:\n"
+                                        f"```\n{normalized_expected_value}\n```\n"
+                                        f"But no variable was found in your object with a matching variable name and value. Make sure you aren't misspelling a variable name. "
+                                        f"Below are all the variables contained in your {class_name} object, ignoring punctuation / capitalization for both the variable name and value:\n\n"
+                                        f"### Your actual {class_name} object:\n"
+                                        f"```\n{actual_obj_values_normalized}\n```\n"),
+                        current_test_name=current_test_name,
+                        input_test_case=input_test_case,
+                        )
+                    rec.fail_case(
+                    case_id=f"class:{class_name}:{index}",
+                    custom_message=formatted,
+                    case_type="class",
+                    label=f"{class_name}: expected value: {normalized_expected_name}"
+                    )
+                else:
+                    rec.pass_case(
+                        case_id=f"class:{class_name}:{index}",
+                        case_type="class",
+                        label=f"{class_name}: expected value: {normalized_expected_name}"
+                    )
+                index += 1
         
     except AssertionError:
         raise
     except Exception as e:
         exception_message_for_students(e, input_test_case, current_test_name)
+    finally:
+        pc_finalize_and_maybe_fail(rec)
+

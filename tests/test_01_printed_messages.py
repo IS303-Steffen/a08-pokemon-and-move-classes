@@ -1,10 +1,22 @@
 max_score = 9  # This value is pulled by yml_generator.py to assign a score to this test.
-from conftest import normalize_text, load_student_code, format_error_message, exception_message_for_students, round_match
+from conftest import (
+    normalize_text,
+    load_student_code,
+    format_error_message,
+    exception_message_for_students,
+    round_match,
+    get_similarity_feedback,
+    clear_database,
+    pc_get_or_create,
+    pc_finalize_and_maybe_fail,
+    default_module_to_test
+)
 import re
 
 # Checks if the expected printed messages actually appear, but doesn't check for specific inputs or correct calculations.
 def test_01_printed_messages(current_test_name, input_test_cases):
     try:
+        rec = pc_get_or_create(current_test_name, max_score)
         # Ensure test_cases is valid and iterable
         if not isinstance(input_test_cases, list):
             test_case = {"id_test_case": None}
@@ -48,9 +60,12 @@ def test_01_printed_messages(current_test_name, input_test_cases):
             inputs = test_case["inputs"]
 
             # Load in the student's code and capture output
-            queue_payloads = load_student_code(inputs, input_test_cases[0])
+            manager_payload = load_student_code(current_test_name, inputs, input_test_cases[0], default_module_to_test)
 
-            captured_output = queue_payloads.get('captured_output')
+            if not manager_payload:
+                continue # if there was an error in running student code, it's already been logged. Just skip to the next test case.
+
+            captured_output = manager_payload.get('captured_output')
             
             # Split the captured output into lines
             captured_lines = captured_output.splitlines()
@@ -72,15 +87,18 @@ def test_01_printed_messages(current_test_name, input_test_cases):
                 if re.search(expected_get_info, normalized_captured_print_statements):
                     phrase_counter += 1
             
-            assert phrase_counter == 3, format_error_message(
-                    custom_message=(f"Exactly 3 of the following phrases need to appear in your code (ignoring punctuation / capitalization):\n\n"
-                                    f"{expected_get_info_messages_normalized_str}\n\n"
+            if not phrase_counter == 3:
+                formatted = format_error_message(
+                    custom_message=(f"Exactly 3 of the following phrases need to appear in your code (ignoring punctuation / capitalization):\n"
+                                    f"```\n{expected_get_info_messages_normalized_str}\n```\n"
                                     f"However, {phrase_counter} were found in your code. Be sure to double check your spelling and make sure "
                                     f"you aren't printing the same message twice."
-                                    f"Below are all the printed messages from your code (ignoring punctuation / capitalization):\n\n"
-                                    f"{normalized_captured_print_statements}\n\n"),
+                                    f"Below are all the printed messages from your code in alphabetical order (ignoring punctuation / capitalization):\n\n"
+                                    f"```\n{normalized_captured_print_statements}\n```\n"),
                     current_test_name=current_test_name
                 )
+                rec.fail_case(case_id="Default", reason="printed message mismatch", custom_message=formatted)
+                return
 
 
             # Check that each required phrase (regex pattern) is found in the normalized captured output
@@ -100,14 +118,18 @@ def test_01_printed_messages(current_test_name, input_test_cases):
                 match = re.search(expected_phrase, normalized_captured_print_statements)
 
                 expected_phrase = error_message_version if 'error_message_version' in locals() else expected_phrase
-                assert match, format_error_message(
-                    custom_message=("The expected printed message (ignoring punctuation / capitalization):\n\n"
-                                    f"\"{expected_phrase}\"\n\n"
+                if not match:
+                    formatted = format_error_message(
+                    custom_message=("The expected printed message (ignoring punctuation / capitalization):\n"
+                                    f"```\n\"{expected_phrase}\"\n```\n"
                                     f"wasn't printed in your code.\n\n"
-                                    f"Below are all the printed messages from your code (ignoring punctuation / capitalization):\n\n"
-                                    f"{normalized_captured_print_statements}\n\n"),
+                                    f"Below are all the printed messages from your code (ignoring punctuation / capitalization):\n"
+                                    f"```\n{normalized_captured_print_statements}\n```\n"),
                     current_test_name=current_test_name
-                )
+                    )
+                    rec.fail_case(case_id="Default", reason="printed message mismatch", custom_message=formatted)
+                    return
+
 
     # assert raises an AssertionError, but I don't want to actually catch it
     # this is just so I can have another Exception catch below it in case
@@ -119,4 +141,5 @@ def test_01_printed_messages(current_test_name, input_test_cases):
         # Handle other exceptions
         input_test_case = {"id_input_test_case": None, "input_test_case_description": None}
         exception_message_for_students(e, input_test_case, current_test_name)
-    
+    finally:
+        pc_finalize_and_maybe_fail(rec)
